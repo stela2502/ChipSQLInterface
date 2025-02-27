@@ -14,6 +14,6 @@ GTF_FILE="$1"
 DB_PATH="$2"
 
 # Run the command inside the Singularity image
-cmd="apptainer exec -B $DB_PATH:/opt/data $SINGULARITY_IMAGE python3 /usr/local/bin/load_gtf.py $GTF_FILE"
+cmd="apptainer exec -B $DB_PATH:/opt/data $SINGULARITY_IMAGE  start_with_db.sh & python3 /usr/local/bin/load_gtf.py $GTF_FILE"
 echo "$cmd"
 $cmd

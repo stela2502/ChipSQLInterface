@@ -58,6 +58,19 @@ From: alpine:latest
     
     mkdir $PGDATA    
 
+    echo "#!/bin/bash
+    # Start PostgreSQL if not already running
+    if ! pg_isready -q; then
+        echo 'Starting PostgreSQL...'
+        su postgres -c 'pg_ctl -D $PGDATA -l /var/log/postgresql.log start'
+    fi
+
+    echo 'Executing command: ' \"\$@\"
+    exec \"\$@\"
+    " > /usr/local/bin/start_with_db.sh
+
+    chmod +x /usr/local/bin/start_with_db.sh
+
 # Define the entrypoint for the container (run PostgreSQL server and Flask app)
 %runscript
     # Initialize database if not been done
