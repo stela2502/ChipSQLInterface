@@ -1,0 +1,85 @@
+# Define the base image (Alpine)
+Bootstrap: docker
+From: alpine:latest
+
+# Metadata about the image
+%labels
+    Author YourName
+    Version 1.0
+    Description "PostgreSQL with Human GTF Parsing and Web Interface for Summary Peaks"
+
+# Setup environment variables and dependencies
+%environment
+    export PATH=$PATH:/usr/local/bin
+    export PGDATA=/opt/data
+%files
+    # Copy the external SQL script (setup_db.sql) into the container
+    db_definition/setup_db.sql /etc/setup_db.sql
+    db_definition/load_gtf.py /usr/local/bin/load_gtf.py
+    db_definition/flask_app.py /usr/local/bin/flask_app.py
+
+# Install dependencies
+%post
+
+    export PATH=$PATH:/usr/local/bin
+    export PGDATA=/opt/data
+
+    # Update the Alpine package repository and install packages
+    apk add --no-cache \
+        postgresql \
+        postgresql-contrib \
+        bash \
+        curl \
+        python3 \
+        py3-pip \
+        git \
+        build-base \
+        libmagic \
+        libpq \
+        python3-dev \
+        gcc \
+        libpq-dev fuse2fs \
+        libc-dev \
+        musl-dev \
+        openssl\
+
+
+    # Download gffread binary using curl
+    curl -L https://github.com/gpertea/gffread/releases/download/v0.12.7/gffread-0.12.7-linux-x86_64 -o /usr/local/bin/gffread
+
+    # Make the binary executable
+    chmod +x /usr/local/bin/gffread
+
+    # Install Flask and other required Python packages
+    pip3 install psycopg2 flask pandas  --break-system-packages
+
+    POSTGRES_PASSWORD=$(openssl rand -base64 16) && echo "PostgreSQL password: $POSTGRES_PASSWORD"
+    echo $POSTGRES_PASSWORD > /etc/postgres_password.txt
+    
+    mkdir $PGDATA    
+
+# Define the entrypoint for the container (run PostgreSQL server and Flask app)
+%runscript
+    # Initialize database if not been done
+    if [ ! -f "$PGDATA/.initialized" ]; then
+	su postgres -c "/usr/bin/initdb --auth=md5 -A password --pwfile=/etc/postgres_password.txt -D $PGDATA"
+        su postgres -c "psql -f /etc/setup_db.sql"
+        touch $PGDATA/.initialized
+    fi
+    # Start PostgreSQL service
+    su postgres -c "pg_ctl start -D $PGDATA"
+    # Start the Flask app
+    python3 /usr/local/bin/flask_app.py
+    tail -f /dev/null
+
+
+%startscript
+    echo "Starting PostgreSQL..."
+    if [ ! -f "$PGDATA/.initialized" ]; then
+        su postgres -c "/usr/bin/initdb --auth=md5 -A password --pwfile=/etc/postgres_password.txt -D $PGDATA"
+        su postgres -c "pg_ctl -D $PGDATA -l logfile start"
+        su postgres -c "psql -f /etc/setup_db.sql"
+        touch "$PGDATA/.initialized"
+    else
+        su postgres -c "pg_ctl -D $PGDATA -l logfile start"
+    fi

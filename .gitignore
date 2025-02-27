@@ -1,0 +1,11 @@
+
+eror.txt
+database/*
+test*
+ChipSQLInterface/
+.ipynb_checkpoints
+*.swp
+*.RData
+*.sif
+*.ipynb
+build*

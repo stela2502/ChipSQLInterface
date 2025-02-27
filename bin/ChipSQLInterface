@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Path to your Singularity image
+SCRIPT_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+VERSION=1.0
+SINGULARITY_IMAGE="$SCRIPT_DIR/../ChipSQLInterface_v${VERSION}.sif"
+
+# Check if a command was provided
+if [ "$#" -lt 1 ]; then
+  echo "Usage: ChipSQLInterface db_path"
+  echo "Will start the database interface using populating the db_path "
+  exit 1
+fi
+
+# Run the command inside the Singularity image
+singularity run -B "$@":/opt/data "$SINGULARITY_IMAGE"
+
