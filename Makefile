@@ -21,6 +21,9 @@ all: clean restart build deploy
 # Restart the sandbox - creates or updates the sandbox
 restart:
 	@echo "Restarting sandbox..."
+	@if [ -f database/data ]; then \
+	    rm -Rf database/*; \
+	fi
 	@if [ -d $(SANDBOX_DIR) ]; then \
 		echo "Updating existing sandbox..."; \
 	else \

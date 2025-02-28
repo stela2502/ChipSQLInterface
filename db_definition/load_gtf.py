@@ -27,14 +27,14 @@ def load_gtf_to_postgres(gtf_file, password):
                 gene_info = {
                     'gene_name': parts[8].split('gene_name "')[1].split('"')[0],
                     'chromosome': parts[0],
-                    'start_pos': int(parts[3]),
-                    'end_pos': int(parts[4]),
+                    'start': int(parts[3]),
+                    'stop': int(parts[4]),
                     'strand': parts[6]
                 }
 
                 # Adjust gene orientation if necessary (based on strand)
                 if gene_info['strand'] == '-':
-                    gene_info['start_pos'], gene_info['end_pos'] = gene_info['end_pos'], gene_info['start_pos']
+                    gene_info['start'], gene_info['stop'] = gene_info['stop'], gene_info['start']
 
                 gene_data.append(gene_info)
 
@@ -43,39 +43,40 @@ def load_gtf_to_postgres(gtf_file, password):
                 transcript_info = {
                     'transcript_name': parts[8].split('transcript_id "')[1].split('"')[0],
                     'chromosome': parts[0],
-                    'start_pos': int(parts[3]),
-                    'end_pos': int(parts[4]),
+                    'start': int(parts[3]),
+                    'stop': int(parts[4]),
                     'strand': parts[6]
                 }
 
                 # Adjust transcript position based on strand (gene orientation)
                 if transcript_info['strand'] == '-':
-                    transcript_info['start_pos'], transcript_info['end_pos'] = transcript_info['end_pos'], transcript_info['start_pos']
+                    transcript_info['start'], transcript_info['stop'] = transcript_info['stop'], transcript_info['start']
 
                 transcript_data.append(transcript_info)
 
     # Insert genes into the database
     for gene in gene_data:
         cur.execute("""
-            INSERT INTO genes (gene_name, chromosome, start_pos, end_pos, strand) 
-            VALUES (%s, %s, %s, %s, %s) RETURNING gene_id
-        """, (gene['gene_name'], gene['chromosome'], gene['start_pos'], gene['end_pos'], gene['strand']))
+            INSERT INTO genes (gene_name, chromosome, start, stop) 
+            VALUES (%s, %s, %s, %s) RETURNING id
+        """, (gene['gene_name'], gene['chromosome'], gene['start'], gene['stop']))
         gene_id = cur.fetchone()[0]
 
         # Insert transcripts linked to the gene_id
         for transcript in transcript_data:
             # Insert transcript into the database
             cur.execute("""
-                INSERT INTO transcripts (gene_id, transcript_name, chromosome, start_pos, end_pos, strand) 
-                VALUES (%s, %s, %s, %s, %s, %s)
-            """, (gene_id, transcript['transcript_name'], transcript['chromosome'], transcript['start_pos'], transcript['end_pos'], transcript['strand']))
+                INSERT INTO transcripts (gene_id, transcript_name,  start, stop) 
+                VALUES (%s, %s, %s, %s)
+            """, (gene_id, transcript['transcript_name'], transcript['start'], transcript['stop']))
 
     conn.commit()
 
-    # Create indexes on chromosome, start_pos, and end_pos for efficient querying
+    # Create indexes on chromosome, start, and stop for efficient querying
     cur.execute("""
-    CREATE INDEX IF NOT EXISTS idx_genes_chromosome_start_end ON genes(chromosome, start_pos, end_pos);
-    CREATE INDEX IF NOT EXISTS idx_transcripts_chromosome_start_end ON transcripts(chromosome, start_pos, end_pos);
+    CREATE INDEX IF NOT EXISTS idx_genes_chromosome_start_end ON genes(chromosome, start, stop);
+    CREATE INDEX IF NOT EXISTS idx_genes_chromosome_start ON genes(chromosome, start );
+    CREATE INDEX IF NOT EXISTS idx_gene ON transcripts( gene_id );
     """)
 
     cur.close()

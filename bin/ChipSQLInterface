@@ -13,5 +13,5 @@ if [ "$#" -lt 1 ]; then
 fi
 
 # Run the command inside the Singularity image
-singularity run -B "$@":/opt/data "$SINGULARITY_IMAGE"
+singularity run -B "$@":/opt "$SINGULARITY_IMAGE"
 

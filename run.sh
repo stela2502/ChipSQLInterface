@@ -14,5 +14,6 @@ fi
 
 # Run the image
 echo "Running ${IMAGE_NAME}..."
-apptainer run -B database:/opt/data "${IMAGE_PATH}/${IMAGE_NAME}"
+apptainer run -B /mnt,database:/opt,logs:/var/run/postgresql "${IMAGE_PATH}/${IMAGE_NAME}"
+
 
