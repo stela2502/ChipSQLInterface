@@ -39,6 +39,23 @@ This script would initialize the database in the path and import the gene and tr
 
 # Usage
 
-Will be updated as soon as it is usable ;-)
+On COSMOS-Sense you can load this module using 
 
+```
+module use /scale/gr01/shared/common/modules
+
+ml ChipEQLinterface/1.0
+
+```
+
+To start the server you need an empty folder where the database will be built.
+You can start the server by stating
+
+```
+ChipEQLinterface <your database folder>
+```
+
+This will start a web server that allows you to upload a gtf file and several bed files. From there you can quiry all bed files in one go and select all genes with a gene start in x bp distance to the bed regions.
+
+Connecting directly to the database you need the password that will be written to STDOUT when starting the server.
 

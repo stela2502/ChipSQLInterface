@@ -39,7 +39,7 @@ build:
 
 direct:
 	@echo "Building from definition file..."
-	sudo apptainer build $(IMAGE_NAME) $(DEFINITION_FILE)
+	sudo apptainer build  --disable-suid $(IMAGE_NAME) $(DEFINITION_FILE)
 	@sed -i 's/VERSION=.*/VERSION=${VERSION}/' run.sh
 
 # Deploy the image by copying it to the deployment directory

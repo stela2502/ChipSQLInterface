@@ -1,3 +1,5 @@
+#!/bin/bash
+
 SCRIPT_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 VERSION=1.0
 SINGULARITY_IMAGE="$SCRIPT_DIR/../ChipSQLInterface_v${VERSION}.sif"
@@ -14,6 +16,9 @@ GTF_FILE="$1"
 DB_PATH="$2"
 
 # Run the command inside the Singularity image
-cmd="apptainer exec -B $DB_PATH:/opt $SINGULARITY_IMAGE  start_with_db.sh & python3 /usr/local/bin/load_gtf.py $GTF_FILE"
+cmd="apptainer exec -B $DB_PATH:/opt $SINGULARITY_IMAGE stop_server.sh & sleep 10; start_with_db.sh & sleep 10 ;python3 /usr/local/bin/load_gtf.py '$GTF_FILE'"
+
 echo "$cmd"
 $cmd
+
+exit 1

@@ -16,5 +16,5 @@ echo "Entering sandbox ${SANDBOX_DIR}..."
 
 let uid=$(id -u)
 apptainer exec "${SANDBOX_PATH}/${SANDBOX_DIR}" sh -c "usermod -u $uid postgres && groupmod -g $uid postgres"
-sudo apptainer shell -B /mnt,database:/opt,logs:/var/run/postgresql --writable "${SANDBOX_PATH}/${SANDBOX_DIR}"
+sudo apptainer shell  -B /mnt --writable "${SANDBOX_PATH}/${SANDBOX_DIR}"
 

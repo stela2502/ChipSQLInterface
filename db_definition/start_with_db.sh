@@ -1,23 +1,27 @@
 #!/bin/bash
-FISRT=0
+FIRST=0
 if [ ! -d $PGDATA ]; then
     mkdir -p $PGDATA
     chown postgres:postgres $PGDATA
     mkdir -p $PGLOG
     chown postgres:postgres $PGLOG
-    echo 'Initializing PostgreSQL...'
+    echo 'Initializing PostgreSQL...'    
+
+    FIRST=1
+    
     exe=$(which pg_ctl)
     other="--auth=password --pwfile /etc/postgres_password.txt"
-    su - postgres -c "$exe init -D $PGDATA -o '$other' "
+    gosu postgres $exe init -D $PGDATA -o '$other'
+    
     sed -i "s|^#unix_socket_directories =.*|unix_socket_directories = '$PGDATA'|" $PGDATA/postgresql.conf
-    FIRST=1
+
 fi
 # Start PostgreSQL if not already running
 if ! pg_isready -h localhost -q; then
     echo 'Starting PostgreSQL...'
     sleep 5
     exe=$(which pg_ctl)
-    su - postgres -c "$exe start -D $PGDATA -l $PGLOG/database.log -t 50"
+    gosu postgres $exe start -D $PGDATA -l $PGLOG/database.log -t 50
 else
     echo "Server should be up already"
 fi

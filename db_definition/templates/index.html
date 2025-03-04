@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Experiment Overview</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+        }
+
+        .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            height: 80vh; /* Adjust based on your needs */
+        }
+
+        .left-section, .right-section {
+            height: 100%; /* Makes both sections take full height */
+            overflow: auto; /* Enables scrolling if content exceeds height */
+        }
+
+        .left-section {
+            width: 60%;
+        }
+
+        .right-section {
+            width: 35%;
+            padding-left: 20px;
+            border-left: 2px solid #ddd;
+        }
+
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 20px; 
+        }
+
+        th, td { 
+            border: 1px solid black; 
+            padding: 8px; 
+            text-align: left; 
+        }
+
+        th { 
+            background-color: #f2f2f2; 
+        }
+
+        .error { 
+            color: red; 
+            font-weight: bold; 
+        }
+
+        form {
+            margin-top: 20px;
+        }
+
+        input, select, textarea, button {
+            display: block;
+            width: 100%;
+            margin: 8px 0;
+            padding: 8px;
+        }
+    </style>
+</head>
+<body>
+    
+
+    <div class="container">
+        <!-- Left section for table -->
+        <div class="left-section">
+            <h1>Genome Analysis Overview</h1>
+
+            {% if error_message %}
+                <p class="error">Error: {{ error_message }}</p>
+            {% endif %}
+
+            {% if genome_version == "Nothing" %}
+                <h2>Upload GTF File</h2>
+                <form action="/upload_gtf" method="post" enctype="multipart/form-data">
+                    <label for="gtffile">Select a GTF File:</label>
+                    <input type="file" name="gtffile" id="gtffile" accept=".gtf" required>
+                    <button type="submit">Upload</button>
+                </form>
+            {% else %}
+                <p><strong>Genome Version:</strong> {{ genome_version }}</p>
+            {% endif %}
+            
+            <p><strong>Number of Experiments:</strong> {{ num_experiments }}</p>
+
+
+            <h2>Peaks Per Experiment</h2>
+            <table>
+                <tr>
+                    <th>Experiment ID</th>
+                    <th>Number of Peaks</th>
+                </tr>
+                {% for exp_id, peak_count in peaks_info.items() %}
+                <tr>
+                    <td>{{ exp_id }}</td>
+                    <td>{{ peak_count }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+
+        <!-- Right section for forms -->
+        <div class="right-section">
+            <h2>Upload BED File</h2>
+            <form action="/upload_bed" method="post" enctype="multipart/form-data">
+                <label for="experiment">Select an Experiment:</label>
+                <select name="experiment_id" id="experiment">
+                    {% for experiment in experiments %}
+                    <option value="{{ experiment.id }}">{{ experiment.experiment_name }}</option>
+                    {% endfor %}
+                </select>
+                
+                <p>Or create a new experiment:</p>
+                <input type="text" name="new_experiment_name" placeholder="New Experiment Name">
+                <textarea name="new_experiment_description" placeholder="Experiment Description"></textarea>
+                
+                <input type="file" name="file" accept=".bed">
+                <button type="submit">Upload</button>
+            </form>
+
+            <h2>Or - Identify genes close to the bed entries</h2>
+            <p>Please select the maximum distance between the bed entries and the transcription start point of the gene(s) in base pairs:</p>
+            <form action="/get_genes" method="post" enctype="application/x-www-form-urlencoded">
+                <input type="number" name="distance" placeholder="Distance to gene start in bp" required min="1">
+                <button type="submit">Download</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

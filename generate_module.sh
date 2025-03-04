@@ -19,8 +19,7 @@ mkdir -p "$(dirname "$MODULE_FILE")"
 
 # Create the module file
 cat <<EOF 
-help([[This module is an example Singularity Image prowiding  
-       a 'naked' Python Jupyter Lab interface to both Python and R ]])
+help([[This module is a Database to store bed files from Chip or similar experiments with an accompaning HTTP server to interact with it]])
 
 local version = "$VERSION"
 local base = pathJoin("$PATH_ARG")
@@ -65,7 +64,9 @@ if bind_paths ~= "" then
 end
 
 -- this happens at load
-execute{cmd="singularity run "..bind_paths.." ".. base.. "/${IMAGE_NAME}_v".. version ..".sif",modeA={"load"}}
+prepend_path("PATH",pathJoin( base ,"bin"))
+
+---execute{cmd="singularity run "..bind_paths.." ".. base.. "/${IMAGE_NAME}_v".. version ..".sif",modeA={"load"}}
 
 
 -- this happens at unload

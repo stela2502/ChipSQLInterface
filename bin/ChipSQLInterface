@@ -8,10 +8,9 @@ SINGULARITY_IMAGE="$SCRIPT_DIR/../ChipSQLInterface_v${VERSION}.sif"
 # Check if a command was provided
 if [ "$#" -lt 1 ]; then
   echo "Usage: ChipSQLInterface db_path"
-  echo "Will start the database interface using populating the db_path "
+  echo "Will start the database interface and populate the db_path is empty"
   exit 1
 fi
 
 # Run the command inside the Singularity image
-singularity run -B "$@":/opt "$SINGULARITY_IMAGE"
-
+apptainer run -B "$@":/opt "$SINGULARITY_IMAGE"
