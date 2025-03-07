@@ -94,20 +94,25 @@ def index():
         num_experiments = cur.fetchone()[0]
 
         # Fetch the number of peaks per experiment
-        cur.execute("SELECT experiment_name, COUNT(experiment_id) from bed Group By experiment_id ")
+        cur.execute("""SELECT experiment_id, COUNT(experiment_id)
+            from bed Group By experiment_id """
+        )
         peaks_per_experiment = cur.fetchall()
 
         # Fetch existing experiments
         cur.execute("SELECT id, experiment_name FROM experiments;")
         experiments = cur.fetchall()  # List of tuples (id, experiment_name)
+        experiment_dict = {exp_id: exp_name for exp_id, exp_name in experiments}
 
+        print( f"The experiment dict: {experiment_dict}")
         cur.close()
         conn.close()
 
         # Prepare the data to be displayed
         peaks_info = {}
         for exp_id, peak_count in peaks_per_experiment:
-            peaks_info[exp_id] = peak_count
+            exp_name = experiment_dict.get(exp_id, "Unknown Experiment")
+            peaks_info[exp_name] =  peak_count 
 
         error_message += request.args.get('error_message', "")  # Get error message from URL
         
@@ -280,7 +285,7 @@ def get_genes_near_peaks(distance):
                     g.start AS gene_start,
                     g.stop AS gene_stop,
                     b.id AS bed_id,
-                    b.experiment_id,
+                    e.experiment_name,
                     b.chromosome AS bed_chromosome,
                     b.start AS bed_start,
                     b.stop AS bed_stop,
@@ -296,6 +301,7 @@ def get_genes_near_peaks(distance):
                     END AS distance
                 FROM genes g
                 JOIN bed b ON g.chromosome = b.chromosome
+                JOIN experiments e ON b.experiment_id = e.id
                 WHERE (g.start - ? <= b.stop AND g.stop + ? >= b.start)
                 ORDER BY g.chromosome, g.start;
             """

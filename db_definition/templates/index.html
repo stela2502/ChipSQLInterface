@@ -98,9 +98,9 @@
                     <th>Experiment ID</th>
                     <th>Number of Peaks</th>
                 </tr>
-                {% for exp_id, peak_count in peaks_info.items() %}
+                {% for (exp_name, peak_count) in peaks_info.items()%}
                 <tr>
-                    <td>{{ exp_id }}</td>
+                    <td>{{ exp_name }}</td>
                     <td>{{ peak_count }}</td>
                 </tr>
                 {% endfor %}
@@ -127,7 +127,7 @@
             </form>
 
             <h2>Or - Identify genes close to the bed entries</h2>
-            <p>Please select the maximum distance between the bed entries and the transcription start point of the gene(s) in base pairs:</p>
+            <p>Please select the maximum distance between the bed entries (peaks) and the transcription start point of the gene(s) in base pairs:</p>
             <form action="/get_genes" method="post" enctype="application/x-www-form-urlencoded">
                 <input type="number" name="distance" placeholder="Distance to gene start in bp" required min="1">
                 <button type="submit">Download</button>

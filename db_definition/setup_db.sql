@@ -1,20 +1,20 @@
 -- Table for storing experiments (e.g., ChIP-seq experiments)
 
 CREATE TABLE experiments (
-    id SERIAL PRIMARY KEY,              -- Experiment ID
+    id INTEGER PRIMARY KEY AUTOINCREMENT,              -- Experiment ID
     experiment_name TEXT NOT NULL,       -- Name of the experiment (e.g., "ChIP-seq experiment 1")
     description TEXT                    -- Description of the experiment
 );
 
 CREATE Table info (
-    id SERIAL PRIMARY KEY,              -- info ID
+    id INTEGER PRIMARY KEY AUTOINCREMENT,              -- info ID
     info TEXT
 );
 
 
 -- Table for storing genes
 CREATE TABLE genes (
-    id SERIAL PRIMARY KEY,              -- Gene ID
+    id INTEGER PRIMARY KEY AUTOINCREMENT,              -- Gene ID
     gene_name TEXT NOT NULL,            -- Gene name (e.g., "BRCA1")
     chromosome TEXT NOT NULL,           -- Chromosome where the gene is located
     start INT,                          -- Start position of the gene
@@ -23,7 +23,7 @@ CREATE TABLE genes (
 
 -- Table for storing transcripts (linked to genes, with alternative start and stop positions)
 CREATE TABLE transcripts (
-    id SERIAL PRIMARY KEY,              -- Transcript ID (for different isoforms)
+    id INTEGER PRIMARY KEY AUTOINCREMENT,              -- Transcript ID (for different isoforms)
     gene_id INT NOT NULL,               -- Foreign key linking to genes table
     transcript_name TEXT NOT NULL,      -- Name of the transcript (e.g., "BRCA1_Transcript_1")
     start INT,                          -- Start position of this transcript
@@ -33,7 +33,7 @@ CREATE TABLE transcripts (
 
 -- Table for storing BED data (linking to experiments)
 CREATE TABLE bed (
-    id SERIAL PRIMARY KEY,              -- Unique ID for each BED entry
+    id INTEGER PRIMARY KEY AUTOINCREMENT,             -- Unique ID for each BED entry
     experiment_id INT NOT NULL,         -- Foreign key linking to experiments
     chromosome TEXT NOT NULL,           -- Chromosome where the peak is located
     start INT NOT NULL,                 -- Start position of the peak
