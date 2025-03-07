@@ -14,6 +14,6 @@ fi
 
 # Run the image
 echo "Running ${IMAGE_NAME}..."
-apptainer shell -B /mnt,database:/opt,logs:/var/run/postgresql,/tmp --fakeroot "${IMAGE_PATH}/${IMAGE_NAME}"
+apptainer shell --fakeroot -B /mnt,logs:/var/run/postgresql -B database:/opt:rw "${IMAGE_PATH}/${IMAGE_NAME}"
 
 

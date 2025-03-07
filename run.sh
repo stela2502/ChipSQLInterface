@@ -12,8 +12,12 @@ if [ ! -f "${IMAGE_PATH}/${IMAGE_NAME}" ]; then
     exit 1
 fi
 
+if [ ! -d database/tmp ]; then
+   mkdir database/tmp
+fi
+
 # Run the image
 echo "Running ${IMAGE_NAME}..."
-apptainer run -B /mnt,database:/opt,logs:/var/run/postgresql,/tmp "${IMAGE_PATH}/${IMAGE_NAME}"
+apptainer run -B /mnt,database:/opt,logs:/var/run/postgresql,database/tmp:/tmp "${IMAGE_PATH}/${IMAGE_NAME}"
 
 

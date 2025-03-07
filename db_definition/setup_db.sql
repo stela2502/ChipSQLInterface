@@ -43,6 +43,8 @@ CREATE TABLE bed (
     FOREIGN KEY (experiment_id) REFERENCES experiments(id)
 );
 
+/*
+
 CREATE OR REPLACE FUNCTION get_genes_near_peaks( dist INT)
 RETURNS TABLE (
     gene_id INT,
@@ -87,3 +89,4 @@ BEGIN
     WHERE (g.start - dist <= b.stop AND g.stop + dist >= b.start);
     END;
 $$ LANGUAGE plpgsql;
+*/

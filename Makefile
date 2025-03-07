@@ -61,4 +61,5 @@ clean:
 	@echo "Cleaning up..."
 	rm -rf $(SANDBOX_DIR)
 	rm -f $(IMAGE_NAME)
+	rm -Rf database/*
 

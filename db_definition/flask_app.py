@@ -1,9 +1,12 @@
 import os
 import io
 from flask import Flask, url_for, request, redirect, Response, jsonify, render_template
-import psycopg2
+#import psycopg2
+import sqlite3
 from werkzeug.utils import secure_filename
 import csv
+import getpass
+import subprocess
 
 app = Flask(__name__)
 
@@ -34,24 +37,30 @@ def allowed_file(filename):
 # Function to create a database connection
 def create_connection():
 
-    postgres_password = "uset"
-    try:
-        with open('/etc/postgres_password.txt', 'r') as file:
-            postgres_password = file.read().strip()
-    except FileNotFoundError:
-        raise ValueError("Password file not found!")
+    pgdata_path = os.getenv("PGDATA")
+    # Check if PGDATA exists
+    if not pgdata_path:
+        raise ValueError("PGDATA environment variable is not set!")
 
-    try:
-        conn = psycopg2.connect(
-            dbname=os.getenv("DB_NAME", "genome_db"),  # Database name
-            user=os.getenv("DB_USER", "postgres"),     # Database user
-            password=os.getenv("DB_PASSWORD", postgres_password ),  # Database password
-            host=os.getenv("DB_HOST", "localhost" )     # Database host
-        )
+    # Check if the PGDATA directory exists
+    if not os.path.exists(pgdata_path):
+        raise ValueError(f"database path is not existsig '{pgdata_path}'!")
+
+    # Define the database file path
+    db_path = os.path.join(pgdata_path, "genome.db")
+    if not os.path.exists(db_path):
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        sql_file_path = "/etc/setup_db.sql"
+        with open(sql_file_path, 'r') as file:
+            sql_script = file.read()
+            cursor.executescript(sql_script)
+        print("Database initialized")
         return conn
-    except Exception as e:
-        print(f"Error connecting to database: {e}")
-        return None
+    else:
+        conn = sqlite3.connect(db_path)
+        return conn
+
 
 # Route for the default landing page
 @app.route('/')
@@ -62,8 +71,18 @@ def index():
 
         # Fetch genome version (assuming a metadata table with genome_version)
         cur.execute("SELECT info FROM info LIMIT 1;")
-        genome_version = cur.fetchone()[0] if cur.rowcount > 0 else "Nothing"
-        
+        genome_version_row = cur.fetchone()
+        genome_version = genome_version_row[0] if genome_version_row else "Nothing"
+
+        cur.execute("SELECT count(*) FROM genes;")
+
+        gene_counts = cur.fetchone()[0]
+
+        cur.execute("SELECT count(*) FROM transcripts;")
+
+        transcript_counts = cur.fetchone()[0]
+
+
         error_message = ""
         if genome_version == "Nothing":
             error_message ="Please upload your gtf information before using this tool! USING THE COMMANDLINE TOOLS - NOT THIS SERVER!";
@@ -75,7 +94,7 @@ def index():
         num_experiments = cur.fetchone()[0]
 
         # Fetch the number of peaks per experiment
-        cur.execute("SELECT e.experiment_name, COUNT(b.experiment_id) AS peak_count FROM experiments e LEFT JOIN bed b ON b.experiment_id = e.id Group By e.id")
+        cur.execute("SELECT experiment_id, COUNT(experiment_id) from bed Group By experiment_id ")
         peaks_per_experiment = cur.fetchall()
 
         # Fetch existing experiments
@@ -97,6 +116,8 @@ def index():
             'index.html',
             genome_version=genome_version,
             num_experiments=num_experiments,
+            gene_counts=gene_counts,
+            transcript_counts=transcript_counts,
             peaks_info=peaks_info,
             experiments=[{"id": exp[0], "experiment_name": exp[1]} for exp in experiments],  # Convert tuples to dicts
             error_message=error_message  # Pass error message to template
@@ -119,15 +140,14 @@ def upload_bed():
         conn = create_connection()
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO experiments (experiment_name, description) VALUES (%s, %s) RETURNING id;",
+            "INSERT INTO experiments (experiment_name, description) VALUES (?, ?);",
             (new_experiment_name, new_experiment_description)
         )
-        experiment_id = cur.fetchone()[0]  # Get the new experiment ID
+        experiment_id = cur.lastrowid  # Get the new experiment ID
         conn.commit()
         cur.close()
 
     if not experiment_id:  # Safety check
-        conn.close()
         error_message = "No experiment id selected and not enough data to create a new one"
         return redirect(url_for('index', error_message=error_message))  # Redirect on error
 
@@ -138,11 +158,9 @@ def upload_bed():
         return jsonify({"error": "No selected file"}), 400
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
-        file_path = os.path.join("/tmp", filename)
-        file.save(file_path)
 
         # Process the BED file and insert it into the database
-        result = process_bed_file_in_memory(file_path, experiment_id)
+        result = process_bed_file_in_memory(file, experiment_id)
         if result:
             return redirect(url_for('index'))
             #return jsonify({"success": "BED file uploaded and data inserted into the database"}), 200
@@ -164,12 +182,15 @@ def process_bed_file_in_memory(file, experiment_id):
             with open(file, 'r') as f:
                 lines = f.readlines()
         else:  # If file is a file-like object (e.g., from Flask request)
-            lines = file.readlines()
+            lines = file.stream
 
         id_ = 0
 
-        for line in lines:
+        bed_data = []
+
+        for raw_line in lines:
             id_ +=1
+            line = raw_line.decode("utf-8")  # Decode bytes to str
             if line.startswith('#'):  # Skip comment lines
                 continue
             parts = line.strip().split('\t')
@@ -181,20 +202,19 @@ def process_bed_file_in_memory(file, experiment_id):
                 stop = int(parts[2])
                 peak_score = float(parts[4]) if len(parts) > 4 else 0.0
                 feature_name = parts[3] if len(parts) > 3 else "-"
-
-                cur.execute("""
-                    INSERT INTO bed (experiment_id, chromosome, start, stop, peak_score, feature_name)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                    """, (experiment_id, chromosome, start, stop, peak_score, feature_name))                
+                bed_data.append( [ experiment_id, chromosome, start, stop, peak_score, feature_name ] );            
             else:
                error_message = f"error on bed file line {id_}" 
                return redirect(url_for('index', error_message=error_message))
         try:
+            cur.executemany( 
+                "INSERT INTO bed (experiment_id, chromosome, start, stop, peak_score, feature_name) VALUES (?, ?, ?, ?, ?, ?)", 
+                bed_data
+                )
             conn.commit()
+            conn.close()
         except Exception as e:
             return redirect(url_for('index', error_message= f"Line {id_}: Unexpected error: {e}"))
-        cur.close()
-        conn.close()
         return True
     return False
 
@@ -231,7 +251,7 @@ def process_bed_file(file_path, experiment_id):
                     # Insert the data into the database
                     cur.execute("""
                         INSERT INTO bed (experiment_id, chromosome, start, end, peak_score, feature_name)
-                        VALUES (%s, %s, %s, %s, %s)
+                        VALUES (?, ?, ?, ?, ?)
                     """, (experiment_id, chromosome, start, end, peak_score, feature_name))
 
         conn.commit()
@@ -245,23 +265,56 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'bed'}
 
 
-# Function to fetch genes near peaks from the database
 def get_genes_near_peaks(distance):
-    conn = create_connection()
+    # Connect to the SQLite database
+    conn = create_connection()  # Make sure to provide the path to your database
     if conn:
         cur = conn.cursor()
         try:
-            query = f"SELECT * from get_genes_near_peaks( {distance} )"
-            cur.execute(query)
+            # Define the SQL query
+            query = """
+                SELECT
+                    g.id AS gene_id,
+                    g.gene_name,
+                    g.chromosome,
+                    g.start AS gene_start,
+                    g.stop AS gene_stop,
+                    b.id AS bed_id,
+                    b.experiment_id,
+                    b.chromosome AS bed_chromosome,
+                    b.start AS bed_start,
+                    b.stop AS bed_stop,
+                    b.peak_score,
+                    b.feature_name,
+                    CASE
+                        -- Gene is to the right of the peak
+                        WHEN g.start > b.stop THEN g.start - b.stop
+                        -- Gene is to the left of the peak
+                        WHEN g.stop < b.start THEN b.start - g.stop
+                        -- Gene overlaps the peak
+                        ELSE 0
+                    END AS distance
+                FROM genes g
+                JOIN bed b ON g.chromosome = b.chromosome
+                WHERE (g.start - ? <= b.stop AND g.stop + ? >= b.start);
+            """
+            # Execute the query with the provided distance as a parameter
+            cur.execute(query, (distance, distance))
+
+            # Fetch all results
             results = cur.fetchall()
+
+            # Close the cursor and connection
             cur.close()
             conn.close()
+
             return results
         except Exception as e:
             print(f"Error executing query: {e}")
             return None
     else:
         return None
+
 
 # Route to handle the download of the CSV file
 @app.route("/get_genes", methods=["POST"])
@@ -325,87 +378,98 @@ def upload_gtf():
 
 
 def load_gtf_to_postgres(gtf_file):
+    """Loads a GTF file into a PostgreSQL database using a temporary SQL dump for efficiency."""
+
     conn = create_connection()
     cur = conn.cursor()
 
+    # Check if GTF has already been uploaded
     cur.execute("SELECT info FROM info LIMIT 1;")
     genome_version = cur.fetchone()[0] if cur.rowcount > 0 else "Nothing"
 
     if genome_version != "Nothing":
         return "Error: GTF has already been uploaded"
 
-
-    cur.execute( f" INSERT INTO info ( info ) VALUES ( 'gene info from {gtf_file.filename}' )" )
-    # Process GTF file into genes and transcripts
-    gene_data = []
-    transcript_data = []
-
-    for raw_line in gtf_file.stream:
-        line = raw_line.decode("utf-8")  # Decode the line and remove extra whitespace
-        if line.startswith('#'):
-            continue
-        parts = line.strip().split('\t')
-        if parts[2] == 'gene':
-            # Extract gene data
-            gene_info = {
-                'gene_name': parts[8].split('gene_name "')[1].split('"')[0],
-                'chromosome': parts[0],
-                'start': int(parts[3]),
-                'stop': int(parts[4]),
-                'strand': parts[6]
-            }
-
-            # Adjust gene orientation if necessary (based on strand)
-            if gene_info['strand'] == '-':
-                gene_info['start'], gene_info['stop'] = gene_info['stop'], gene_info['start']
-
-            gene_data.append(gene_info)
-
-        elif parts[2] == 'transcript':
-            # Extract transcript data
-            transcript_info = {
-                'transcript_name': parts[8].split('transcript_id "')[1].split('"')[0],
-                'chromosome': parts[0],
-                'start': int(parts[3]),
-                'stop': int(parts[4]),
-                'strand': parts[6]
-            }
-
-            # Adjust transcript position based on strand (gene orientation)
-            if transcript_info['strand'] == '-':
-                transcript_info['start'], transcript_info['stop'] = transcript_info['stop'], transcript_info['start']
-
-            transcript_data.append(transcript_info)
-
-    # Insert genes into the database
-    for gene in gene_data:
-        cur.execute("""
-            INSERT INTO genes (gene_name, chromosome, start, stop) 
-            VALUES (%s, %s, %s, %s) RETURNING id
-        """, (gene['gene_name'], gene['chromosome'], gene['start'], gene['stop']))
-        gene_id = cur.fetchone()[0]
-
-        # Insert transcripts linked to the gene_id
-        for transcript in transcript_data:
-            # Insert transcript into the database
-            cur.execute("""
-                INSERT INTO transcripts (gene_id, transcript_name,  start, stop) 
-                VALUES (%s, %s, %s, %s)
-            """, (gene_id, transcript['transcript_name'], transcript['start'], transcript['stop']))
-
+    cur.execute(f"INSERT INTO info (info) VALUES ('gene info from {gtf_file.filename}');")
     conn.commit()
 
-    # Create indexes on chromosome, start, and stop for efficient querying
-    cur.execute("""
-    CREATE INDEX IF NOT EXISTS idx_genes_chromosome_start_end ON genes(chromosome, start, stop);
-    CREATE INDEX IF NOT EXISTS idx_genes_chromosome_start ON genes(chromosome, start );
-    CREATE INDEX IF NOT EXISTS idx_gene ON transcripts( gene_id );
-    """)
+    pgdata_path = os.getenv("PGDATA")
+    if pgdata_path:
+        print(f"PGDATA is set to: {pgdata_path}")
+    else:
+        print("PGDATA is not set.")
 
-    cur.close()
+    temp_sql_path = os.path.join(pgdata_path, "temp_import.sql")
+    gene_id_counter = 1  # Start counting genes from 1
+
+
+    # Buffers for bulk insertion
+    gene_entries = []
+    transcript_entries = []
+
+    for raw_line in gtf_file.stream:
+        line = raw_line.decode("utf-8").strip()
+        if line.startswith("#"):
+            continue
+        
+        parts = line.split("\t")
+        if len(parts) < 9:
+            continue
+        
+        feature_type = parts[2]
+        chromosome = parts[0]
+        start = int(parts[3])
+        stop = int(parts[4])
+        strand = parts[6]
+        attributes = parts[8]
+
+        if feature_type == "gene":
+            gene_name = extract_attribute(attributes, "gene_name")
+            if gene_name:
+                if strand == "-":
+                    start, stop = stop, start  # Adjust for reverse strand
+                gene_entries.append( (gene_name,chromosome,start,stop ))
+                gene_id_counter += 1  # Increment for the next gene
+
+        elif feature_type == "transcript":
+            transcript_name = extract_attribute(attributes, "transcript_id")
+            if transcript_name:
+                if strand == "-":
+                    start, stop = stop, start  # Adjust for reverse strand
+                transcript_entries.append((gene_id_counter-1 ,transcript_name , start, stop ) )
+    # just for debug!           
+    f_name = os.path.join(pgdata_path, "db_gtf_contents_file.sql" )
+
+
+    # Write COPY commands to the SQL file
+    if gene_entries:
+        cur.executemany(
+            "INSERT INTO genes (gene_name, chromosome, start, stop) VALUES (?, ?, ?, ?)", 
+            gene_entries)
+
+    if transcript_entries:
+        cur.executemany(
+            "INSERT INTO transcripts (gene_id, transcript_name, start, stop)  VALUES (?, ?, ?, ?)", 
+            transcript_entries)
+
+    cur.execute ( "CREATE INDEX IF NOT EXISTS idx_genes_chromosome_start ON genes(chromosome, start)")
+    cur.execute ( "CREATE INDEX IF NOT EXISTS idx_transcripts_gene_id ON transcripts(gene_id)")
+
+    conn.commit()
     conn.close()
+        
+    return "Data successfully loaded and indexes created"
 
 
+def extract_attribute(attributes, key):
+    """Extracts values from a GTF attributes column (e.g., gene_name or transcript_id)."""
+    for attr in attributes.split(";"):
+        attr = attr.strip()
+        if attr.startswith(key):
+            parts = attr.split('"')
+            if len(parts) > 1:
+                return parts[1]
+    return None
 
 # Main entry point for Flask app
 if __name__ == '__main__':

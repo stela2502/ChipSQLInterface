@@ -32,7 +32,7 @@ From: postgres:latest
     export PATH=$PATH:/usr/local/bin
     export PGDATA=/opt/data
 
-    apt update && apt install -y libstdc++6 zlib1g libcurl4 libboost-all-dev gffread python3-pip tzdata python3-psycopg2 sudo
+    apt update && apt install -y libstdc++6 zlib1g libcurl4 libboost-all-dev gffread python3-pip tzdata
     #apt update && apt install -y gffread python3-pip
 
     ln -sf /usr/share/zoneinfo/Europe/Stockholm /etc/localtime
@@ -43,10 +43,8 @@ From: postgres:latest
     POSTGRES_PASSWORD=$(openssl rand -base64 16) && echo "PostgreSQL password: $POSTGRES_PASSWORD"
     echo $POSTGRES_PASSWORD > /etc/postgres_password.txt
 
-    echo "ALL ALL=(postgres) NOPASSWD: /usr/lib/postgresql/*/bin/pg_ctl" >> /etc/sudoers
-    
-    sudo chown root:root /etc/sudo.conf
-    
+    #echo "ALL ALL=(postgres) NOPASSWD: /usr/lib/postgresql/*/bin/pg_ctl" >> /etc/sudoers
+        
     mkdir $PGDATA    
     export LANG=C.UTF-8
     export LC_ALL=C.UTF-8
@@ -57,19 +55,19 @@ From: postgres:latest
     export POSTGRES_PASSWORD=$(cat /etc/postgres_password.txt)
     # Initialize database if not been done
     # get rid of all old lock files - left overs if the server is not shut down as it should be
-    rm -f /opt/data/.s.*
-    stop_server.sh
-    sleep 5
+    #rm -f /opt/data/.s.*
+    #stop_server.sh
+    #sleep 5
     start_with_db.sh
-    sleep 10
+    #sleep 10
     python3 /usr/local/bin/flask_app.py
     tail -f /dev/null
 
 
 %startscript
-    export POSTGRES_PASSWORD=$(cat /etc/postgres_password.txt)
+    #export POSTGRES_PASSWORD=$(cat /etc/postgres_password.txt)
     start_with_db.sh
-    echo "Starting PostgreSQL..."
+    #echo "Starting PostgreSQL..."
     # get rid of all old lock files - left overs if the server is not shut down as it should be
-    rm -f /opt/data/.s.*
-    start_with_db.sh
+    #rm -f /opt/data/.s.*
+    #start_with_db.sh
