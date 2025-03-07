@@ -94,7 +94,7 @@ def index():
         num_experiments = cur.fetchone()[0]
 
         # Fetch the number of peaks per experiment
-        cur.execute("SELECT experiment_id, COUNT(experiment_id) from bed Group By experiment_id ")
+        cur.execute("SELECT experiment_name, COUNT(experiment_id) from bed Group By experiment_id ")
         peaks_per_experiment = cur.fetchall()
 
         # Fetch existing experiments
@@ -296,7 +296,8 @@ def get_genes_near_peaks(distance):
                     END AS distance
                 FROM genes g
                 JOIN bed b ON g.chromosome = b.chromosome
-                WHERE (g.start - ? <= b.stop AND g.stop + ? >= b.start);
+                WHERE (g.start - ? <= b.stop AND g.stop + ? >= b.start)
+                ORDER BY g.chromosome, g.start;
             """
             # Execute the query with the provided distance as a parameter
             cur.execute(query, (distance, distance))
