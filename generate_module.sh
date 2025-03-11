@@ -66,6 +66,11 @@ end
 -- this happens at load
 prepend_path("PATH",pathJoin( base ,"bin"))
 
+local base = pathJoin("${PATH_ARG}")
+
+prepend_path("PATH",pathJoin( base ,"bin"))
+
+
 ---execute{cmd="singularity run "..bind_paths.." ".. base.. "/${IMAGE_NAME}_v".. version ..".sif",modeA={"load"}}
 
 

@@ -85,7 +85,7 @@ def index():
 
         error_message = ""
         if genome_version == "Nothing":
-            error_message ="Please upload your gtf information before using this tool! USING THE COMMANDLINE TOOLS - NOT THIS SERVER!";
+            error_message ="Please upload your gtf information make sure the genome version of the gtf matches to your bed files!";
 
 
 
