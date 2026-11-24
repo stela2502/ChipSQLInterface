@@ -82,10 +82,10 @@ prepend_path("PATH",pathJoin( base ,"bin"))
 whatis("Name         : ${IMAGE_NAME} singularity image")
 whatis("Version      : ${IMAGE_NAME} $VERSION")
 whatis("Category     : Image")
-whatis("Description  : Singularity image providing Python and R and a jupyter lab as default entry point ")
+whatis("Description  : Singularity image providing a web server that creates and queries a bed/gtf/stat-results database")
 whatis("Installed on : $(date +'%d/%m/%Y') ")
 whatis("Modified on  : --- ")
-whatis("Installed by : \`whomai\`")
+whatis("Installed by : Stefan Lang")
 
 family("images")
 

@@ -2,21 +2,17 @@
 
 # Path to your Singularity image
 SCRIPT_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
-VERSION=1.0
+VERSION=1.1
 SINGULARITY_IMAGE="$SCRIPT_DIR/../ChipSQLInterface_v${VERSION}.sif"
 
 # Check if a command was provided
 if [ "$#" -lt 1 ]; then
-  echo "Usage: ChipSQLInterface db_path"
-  echo "Will start the database interface and populate the db_path is empty"
+  echo "Usage: ChipSQLInterface /path/to/database.db"
+  echo "Will create the database and start the web server"
   exit 1
 fi
 
-if [ ! -d $@/tmp ]; then
-   mkdir $@/tmp
-fi
 
-chmod 777 $@ -R
 
 # Run the command inside the Singularity image
-apptainer run -B "$@":/opt "$SINGULARITY_IMAGE"
+apptainer exec "$SINGULARITY_IMAGE" /usr/local/bin/GeneStatsServer --db-file $@

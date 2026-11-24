@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Variables
-VERSION=1.0
+VERSION=1.1
 IMAGE_NAME="ChipSQLInterface_v${VERSION}.sif"
 SCRIPT=$(readlink -f $0)
 IMAGE_PATH=`dirname $SCRIPT`
